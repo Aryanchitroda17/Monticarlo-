@@ -3,39 +3,40 @@ import pandas as pd
 import yfinance as yf
 import matplotlib.pyplot as plt
 from scipy.stats import norm
-%matplotlib inline 
+%matplotlib inline
 
-def d1 (S,K, r , stdev,T):
-    return (np.log(S/K) + (r + stdev**2/2)*T)/(stdev * np.sqrt(T))
-def d2(S,K, r , stdev,T):
-    return (np.log(S/K) - (r + stdev**2/2)*T)/(stdev * np.sqrt(T))
-    
+# --- Define d1 and d2 ---
+def d1(S, K, r, stdev, T):
+    return (np.log(S / K) + (r + 0.5 * stdev ** 2) * T) / (stdev * np.sqrt(T))
 
-norm.cdf(0)
+def d2(S, K, r, stdev, T):
+    return d1(S, K, r, stdev, T) - stdev * np.sqrt(T)
 
-norm.cdf(0.25)
+# --- Black-Scholes Call Price ---
+def BSM(S, K, r, stdev, T):
+    return S * norm.cdf(d1(S, K, r, stdev, T)) - K * np.exp(-r * T) * norm.cdf(d2(S, K, r, stdev, T))
 
-norm.cdf(9)
-
-def BSM (S,K,r,stdev,T):
-    return (S*norm.cdf(d1(S,K,r,stdev,T))) - (K*np.exp(-r*T)*norm.cdf(d2(S,K,r,stdev,T)))
-
+# --- Fetch data ---
 tic = "RELIANCE.NS"
 data = pd.DataFrame()
-data[tic] = yf.download(tic,start ="2020-01-01")["Close"]
+data[tic] = yf.download(tic, start="2020-01-01")["Close"]
 
-S = data.iloc[-1]
-S
+# --- Current stock price ---
+S = data.iloc[-1][0]  # <-- FIX: extract the float value from the DataFrame
 
-log_return  = np.log(1+ data.pct_change())
+# --- Log return and volatility ---
+log_return = np.log(1 + data.pct_change())
+stdev = log_return.std().values[0] * np.sqrt(250)  # Annualized volatility
 
-stdev= log_return.std()*250 **0.5
-stdev
+# --- Option parameters ---
+r = 0.0632   # risk-free rate
+K = 1450     # strike price
+T = 1        # time to maturity in years
 
-r = 0.0632
-K = 1450
-T = 1
+# --- Calculate and print values ---
+print("S =", S)
+print("Volatility =", stdev)
+print("d1 =", d1(S, K, r, stdev, T))
+print("d2 =", d2(S, K, r, stdev, T))
+print("Call Price (BSM) =", BSM(S, K, r, stdev, T))
 
-d1(S,K, r , stdev,T)
-d2(S,K, r , stdev,T)
-BSM (S,K,r,stdev,T)
