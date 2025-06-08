@@ -1,0 +1,46 @@
+import numpy as np
+import pandas as pd
+import yfinance as yf
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+%matplotlib inline
+
+# Step 1: Download data
+tic = "RELIANCE.NS"
+data = pd.DataFrame()
+data[tic] = yf.download(tic, start="2020-01-01")["Close"]
+
+# Step 2: Calculate log returns
+log_return = np.log(1 + data.pct_change())
+
+# Step 3: Define parameters
+r = 0.0625
+stdev = log_return.std().values[0] * np.sqrt(250)   # Annualized volatility
+T = 1.0
+t_intervals = 250
+delta_t = T / t_intervals
+iterations = 10000
+
+# Step 4: Create standard normal random variables
+Z = np.random.standard_normal((t_intervals + 1, iterations))
+
+# Step 5: Initialize asset price array
+S = np.zeros_like(Z)
+S0 = data.iloc[-1][0]  # <-- Corrected: get price, not row
+S[0] = S0
+
+# Step 6: Simulate GBM using Euler discretization
+for t in range(1, t_intervals + 1):  # Should go up to t_intervals
+    S[t] = S[t-1] * np.exp((r - 0.5 * stdev**2) * delta_t + stdev * np.sqrt(delta_t) * Z[t])
+
+# Step 7: Plot first 10 simulations
+plt.figure(figsize=(10,6))
+plt.plot(S[:, :10])
+plt.title("Euler Discretization of GBM (10 paths)")
+plt.show()
+
+# Step 8: Option Pricing using Monte Carlo
+K = 10  # strike price
+P = np.maximum(S[-1] - K, 0)
+C = np.exp(-r * T) * np.mean(P)
+print("Call Option Price Estimate:", C)
